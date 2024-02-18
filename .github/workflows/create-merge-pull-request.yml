@@ -1,0 +1,58 @@
+name: Create PR with Merged PRs
+
+on:
+  workflow_dispatch:
+    inputs:
+        source_branch:
+            description: 'Source Branch'
+            default: develop
+            required: true
+        target_branch:
+            description: 'Target Branch'
+            default: main
+            required: true
+
+env:
+  GH_TOKEN: ${{ secrets.CREATE_MERGE_PULL_REQUEST_PAT }}
+  SOURCE_BRANCH: ${{ github.event.inputs.source_branch }}
+  TARGET_BRANCH: ${{ github.event.inputs.target_branch }}
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check Out Repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.TARGET_BRANCH }}
+        fetch-depth: 0
+
+    - name: Extract PR numbers from commit messages
+      run: |
+        # Extract PR numbers and format as a space-separated string
+        PR_NUMBERS=$(git log --oneline origin/${{ env.TARGET_BRANCH }}..origin/${{ env.SOURCE_BRANCH }} | 
+                    grep -oE 'Merge pull request \#([0-9]+)' | 
+                    awk -F'#' '{print $2}' | 
+                    sort -n | 
+                    tr '\n' ' ')
+        echo "PR_NUMBERS=$PR_NUMBERS" >> $GITHUB_ENV
+
+    - name: Create PR with Merged PRs
+      run: |
+        PR_TITLE="$(TZ=Asia/Tokyo date +'%Y/%m/%d') Update"
+        PR_BODY="## Included PRs
+        "
+
+        # Convert space-separated PR numbers into an array
+        IFS=' ' read -ra PR_ARRAY <<< "$PR_NUMBERS"
+        for pr in "${PR_ARRAY[@]}"; do
+            PR_BODY+="- #$pr
+        "
+        done
+        echo $PR_BODY
+
+        # Create PR using GitHub CLI
+        gh pr create --base ${{ env.TARGET_BRANCH }} --head ${{ env.SOURCE_BRANCH }} --title "$PR_TITLE" --body "$PR_BODY"
+
+        
