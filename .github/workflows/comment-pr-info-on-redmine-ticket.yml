@@ -18,12 +18,15 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number
             })
-            return pr.data
+            return {
+                body: pr.data.body.replace([\r\n]/g, ""),
+                title: pr.data.title.replace([\r\n]/g, "")
+            };
       - name: parse redmine url and comment on redmine ticket
         run: |
-            number=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .body | sed -r 's|.*https://redmine.example.com/issues/([0-9]+).*|\1|')
+            number=$(echo '${{steps.pr-details.outputs.body}}' | jq -r .body | sed -r 's|.*https://redmine.example.com/issues/([0-9]+).*|\1|')
             echo "redmine_issue=$number" >> $GITHUB_ENV
-            title=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .title)
+            title=$(echo '${{steps.pr-details.outputs.title}}')
             echo "pr_title=$title" >> $GITHUB_ENV
       - name: add note to redimne issue
         if: env.redmine_issue != ''
