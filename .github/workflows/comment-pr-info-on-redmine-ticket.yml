@@ -22,4 +22,10 @@ jobs:
       - name: parse redmine issue number
         id: pr-number
         run: |
-          echo ${{ steps.pr-details.outputs.result }}
+          number=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .body | sed -r 's|.*https://redmine.example.com/issues/([0-9]+).*|\1|')
+          echo "redmine_issue=$number" >> $GITHUB_ENV
+          title=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .title)
+          echo "pr_title=$title" >> $GITHUB_ENV
+      - name: add note to redimne issue
+        if: env.redmine_issue != ''
+        run: curl -X PUT -H "Content-Type:application/json" -H "X-Redmine-API-Key:${{secrets.REDMINE_API_KEY}}" -d '{"issue":{"notes":"pull request [${{env.pr_title}}](${{github.event.pull_request._links.html.href}}) ${{github.event.action}}"}}' https://redmine.example.com/issues/${{env.redmine_issue}}.json
