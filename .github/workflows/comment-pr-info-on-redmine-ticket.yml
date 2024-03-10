@@ -25,7 +25,11 @@ jobs:
       - name: parse redmine url and comment on redmine ticket
         id: parse-redmine-url
         run: |
-            number=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .body | sed -r 's|.*https://redmine.example.com/issues/([0-9]+).*|\1|')
+            number=""
+            url=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .body | grep -o 'https://redmine.example.com/issues/[0-9]+' || true)
+            if [ -n "$url" ]; then
+              number=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .body | sed -r 's|.*https://redmine.example.com/issues/([0-9]+).*|\1|')
+            fi
             echo "redmine_issue=$number" >> $GITHUB_ENV
             title=$(echo '${{steps.pr-details.outputs.result}}' | jq -r .title)
             echo "pr_title=$title" >> $GITHUB_ENV
